@@ -1,0 +1,143 @@
+import { useState } from 'react';
+import TextFields from "../components/TextFields"
+import { Box, Button } from '@mui/material';
+import { useForm, SubmitHandler, useFieldArray } from "react-hook-form";
+
+interface IFormValues {
+    fields: {
+        code: string;
+        name: string;
+    }[];
+}
+
+const Form = () => {
+    const [formData, setFormData] = useState<IFormValues>({ fields: [{ code: "", name: "" }] });
+    const { control, handleSubmit, setError, setValue } = useForm<IFormValues>({
+        defaultValues: formData,
+        mode: "onBlur",
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "fields",
+    });
+
+    const onSubmit: SubmitHandler<IFormValues> = (data) => {
+        // Check for duplicate values before submitting
+        const codes = new Set<string>();
+        let hasDuplicate = false;
+
+        data.fields.forEach(({ code }, index) => {
+            if (codes.has(code)) {
+                hasDuplicate = true;
+                setError(`fields.${index}.code`, {
+                    type: "manual",
+                    message: "Duplicate code found",
+                });
+            } else {
+                codes.add(code);
+            }
+        });
+
+        if (!hasDuplicate) {
+            console.log(data);
+            setFormData((prevFormData) => ({
+                ...prevFormData,
+                fields: [...prevFormData.fields, ...data.fields],
+            }));
+            data.fields.forEach((_, index) => {
+                setValue(`fields.${index}.code`, "");
+                setValue(`fields.${index}.name`, "");
+            });
+        }
+    };
+
+    return (
+        <Box>
+            <Box
+                noValidate
+                component="form"
+                onSubmit={handleSubmit(onSubmit)}
+                sx={{ width: "100%", mt: "2rem", display: "flex", flexDirection: "column", gap: "10px" }}>
+                {fields.map((field, index) => (
+                    <Box key={field.id} sx={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <TextFields control={control} name={`fields.${index}.code`} label="Code" />
+                        <TextFields control={control} name={`fields.${index}.name`} label="Name" />
+                        <Button
+                            type="button"
+                            variant="contained"
+                            onClick={() => append({ code: "", name: "" })}
+                        >
+                            +
+                        </Button>
+                        {index === 0 ? null : (
+                            <Button
+                                type="button"
+                                variant="contained"
+                                onClick={() => remove(index)}
+                            >
+                                -
+                            </Button>
+                        )}
+                    </Box>
+                ))}
+                <Button
+                    type="submit"
+                    variant="contained"
+                    sx={{ width: "20%", margin: "auto" }}
+                >
+                    Submit
+                </Button>
+            </Box>
+
+            {formData.fields.map((data, index) => {
+                if (data.code === "" && data.name === "") return null;
+                return (<Box key={index} sx={{ mt: "2rem", fontSize: "20px" }}>
+                    <span>Code: {data.code} - </span>
+                    <span>Name: {data.name}</span>
+                </Box>)
+            }
+            )}
+        </Box>
+    )
+}
+
+export default Form;
+import { FormControl, TextField } from '@mui/material'
+import { Controller, Control } from 'react-hook-form'
+interface IFormValues {
+    fields: {
+        code: string;
+        name: string;
+    }[];
+}
+interface ITextFieldsProps {
+    control: Control<IFormValues>
+    label: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    name: any
+}
+const TextFields = ({ control, name, label }: ITextFieldsProps) => {
+    return (
+
+        <FormControl fullWidth sx={{ mb: "1rem" }}>
+            <Controller
+                name={name}
+                control={control}
+                rules={{ required: 'This field is required' }}
+                render={({ field, fieldState: { error } }) => (
+                    <TextField
+                        {...field}
+                        error={!!error}
+                        helperText={error?.message}
+                        required
+                        label={label}
+                        variant="filled"
+                    />
+                )}
+            />
+        </FormControl>
+    )
+}
+
+export default TextFields
